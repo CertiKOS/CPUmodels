@@ -244,12 +244,13 @@ Module RawRESet := MSetAVL.Make REOrderedType.
       + intros. in_regexp_inv. in_regexp_inv. 
         rewrite in_app. right. rewrite in_app. left. rewrite in_map_iff. 
         econstructor ; crush. eapply regexp_extract_nil_corr1 ; eauto.
+        congruence.
       + rewrite in_app. rewrite in_app. repeat rewrite in_map_iff. crush.
         inversion H ; crush. eapply InrAlt_r. eapply InrAlt_l. 
         eapply regexp_extract_nil_corr2. eauto. eauto. auto.
     - repeat rewrite in_app. repeat rewrite in_map_iff. crush.
       + repeat in_regexp_inv. right ; right. 
-        exists x. split ; auto. eapply IHtr2. eauto.
+        exists x0. split ; auto. eapply IHtr2. eauto.
       + injection H ; crush. eapply InrAlt_r ; eauto. eapply InrAlt_r ; eauto.
         eapply IHtr2. auto.
   Qed.
@@ -1468,7 +1469,7 @@ Module RawRESet := MSetAVL.Make REOrderedType.
     destruct e1. rewrite bal_xform_erase. 
     unfold tree_type in IHs1, Heqe1. 
     simpl regexp_type in IHs1.
-    rewrite <- Heqe1 in IHs1. rewrite <- IHs1. auto.
+    setoid_rewrite <- Heqe1 in IHs1. rewrite <- IHs1. auto.
     specialize (IHs2 x f1 (xcomp (xcomp xinr xinr) f)).
     fold regexp_type in IHs2. fold tree_to_regexp in IHs2. 
     unfold tree_type in *.
@@ -1500,7 +1501,7 @@ Module RawRESet := MSetAVL.Make REOrderedType.
         remember exp as e1
     end.
     destruct e1. generalize (bal_xform_corr1 _ _ _ _ _ _ _ _ H). intros.
-    destruct H0. generalize (proj1 IHtr1 H0). clear IHtr1 H0 H. intro.
+    destruct H0. rewrite Heqe1 in H0. generalize (proj1 IHtr1 H0). clear IHtr1 H0 H. intro.
     destruct H. crush. unfold in_tree in *. crush ; xinterp_simpl. crush.
     crush ; xinterp_simpl ; unfold in_tree in * ; right ; econstructor ; crush.
     intros. specialize (IHtr2 (xcomp (xcomp xinr xinr) ftr) x fx str v). clear IHtr1.
@@ -1523,14 +1524,14 @@ Module RawRESet := MSetAVL.Make REOrderedType.
       | [ |- in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ ] => 
         remember exp as e1
     end.
-    destruct e1. apply bal_xform_corr2. left. apply IHtr1. left. crush.
+    destruct e1. apply bal_xform_corr2. left. rewrite Heqe1. apply IHtr1. left. crush.
     clear IHtr1. specialize (IHtr2 (xcomp (xcomp xinr xinr) ftr) x fx str v).
     unfold tree_type. simpl regexp_type in IHtr2.
     match goal with 
       | [ |- in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ ] => 
         remember exp as e1
     end.
-    destruct e1. apply bal_xform_corr2. right. right. apply IHtr2. left ; crush.
+    destruct e1. apply bal_xform_corr2. right. right. rewrite Heqe1. apply IHtr2. left ; crush.
     generalize (cmp_leib x t1). generalize (REOrderedTypeAlt.compare x t1).
     destruct c ; intros. generalize (e eq_refl) ; intros ; subst. simpl.
     exists x0. split. auto. xinterp_simpl. destruct x0. xinterp_simpl. auto.
@@ -1544,7 +1545,7 @@ Module RawRESet := MSetAVL.Make REOrderedType.
     end.
     destruct e1. apply bal_xform_corr2. unfold in_tree in H. simpl in H.
     generalize (inv_alt H) ; clear H. intros. destruct H. 
-    destruct H as [v1 [H1 H2]]. subst. left. apply IHtr1. unfold in_tree.
+    destruct H as [v1 [H1 H2]]. subst. left. rewrite Heqe1. apply IHtr1. unfold in_tree.
     right ; econstructor ; split ; eauto. xinterp_simpl. auto.
     destruct H as [v2 [H1 H2]]. subst. generalize (inv_alt H1). clear H1.
     intro H1. destruct H1. destruct H as [v1 [H1 H2]]. subst.
@@ -1564,6 +1565,7 @@ Module RawRESet := MSetAVL.Make REOrderedType.
     generalize (inv_alt H1) ; clear H1 ; intro H. destruct H.
     destruct H as [v1 [H1 H2]]. subst. right ; left. econstructor ; split ; eauto.
     xinterp_simpl ; auto. destruct H as [v3 [H1 H2]]. subst. right ; right.
+    unfold in_tree_xform in IHtr2. setoid_rewrite <- Heqe1 in IHtr2.
     apply IHtr2. right. econstructor. split ; eauto. xinterp_simpl ; auto.
   Qed.
 

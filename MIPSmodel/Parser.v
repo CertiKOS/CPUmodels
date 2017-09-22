@@ -26,6 +26,7 @@ Require Import ParserArg.
 (* Import X86_PARSER_ARG. *)
 
 Require Import CommonTacs.
+Require Import Coqlib.
 Set Implicit Arguments.
 
 Local Ltac false_elim :=
@@ -1762,7 +1763,7 @@ Section DFA.
   Proof. intros.
     unfold wpdrv_wf in H. simpl in H. inversion H.
     subst s1. simpl in *.
-    generalize (inj_pair2 _ _ _ _ _ H); clear H; intro.
+    generalize (Eqdep.EqdepTheory.inj_pair2 _ _ _ _ _ H); clear H; intro.
     subst f1.
     rewrite wpdrv_re_set_corr.
     unfold in_re_set_xform, RES.in_re_set_xform.
@@ -2032,7 +2033,7 @@ Section DFA.
             split; intros; trivial. 
         SCase "s1 notin ss".
           remember (gen_row_help4 s s1 ss e H1 H) as H4.
-          remember (gen_row'_subproof (S n) ss tid H H1 n f1 e) as H6.
+          remember (gen_row'_subproof _ H1 s1) as H6.
           remember_rev (gen_row' n (s1 ::: ss) (1 + tid) H4 H6) as grr.
           destruct grr as [ss' rr].
           destruct rr as [entries Hwfs1].

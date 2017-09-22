@@ -1029,7 +1029,7 @@ Ltac get_gr_tree ast_env :=
         let gt := type of g in
         match gt with
         | wf_bigrammar ?t => 
-          constr:(id, GLeaf rt id g f)
+          constr:((id, GLeaf rt id g f))
         end
       | ast_env_nil => fail (* should not happen *)
       | _ => 
@@ -1042,11 +1042,11 @@ Ltac get_gr_tree ast_env :=
             | (?id2, ?gr2) =>
               let gt := eval compute in (N.ltb id1 id2) in
                   match gt with
-                  | false => constr:(id1, GNode id1 gr1 gr2)
+                  | false => constr:((id1, GNode id1 gr1 gr2))
                   (* since the index in a node should be the biggest in
                     its left-tree node, we still use id1 in the Node
                     constructon *)
-                  | true => constr:(id2, GNode id1 gr1 gr2)
+                  | true => constr:((id2, GNode id1 gr1 gr2))
                   end
             end
           end

@@ -718,6 +718,7 @@ Proof.
   rewrite H. clear H.
   destruct v. induction x0. auto.
   simpl in *. rewrite IHx0.
+  fold xt_interp.
   replace (fst
              (fold_right
                 (fun (a0 : xt_interp t2) (b : xt_interp t1 * list (xt_interp t3)) =>
