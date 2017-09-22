@@ -704,6 +704,7 @@ Proof.
                                         (Xcons (Xcomp (xpair (Xcomp Xsnd Xfst) Xfst) f)
                                                (Xcomp Xsnd Xsnd))) (Xpair Xfst Xempty) Xsnd)
                          Xsnd) v).
+  {
     unfold xmapenv. rewrite xopt_corr. rewrite xcomp_corr.
     simpl. repeat f_equal.
     eapply extensionality; intros.
@@ -715,9 +716,10 @@ Proof.
     simpl.
     rewrite xcomp_pair_corr.
     auto.
+  }
   rewrite H. clear H.
   destruct v. induction x0. auto.
-  simpl in *. rewrite IHx0.
+  simpl in *. rewrite IHx0. fold xt_interp in *.
   replace (fst
              (fold_right
                 (fun (a0 : xt_interp t2) (b : xt_interp t1 * list (xt_interp t3)) =>

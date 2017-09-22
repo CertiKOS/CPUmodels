@@ -244,12 +244,13 @@ Module RawRESet := MSetAVL.Make REOrderedType.
       + intros. in_regexp_inv. in_regexp_inv. 
         rewrite in_app. right. rewrite in_app. left. rewrite in_map_iff. 
         econstructor ; crush. eapply regexp_extract_nil_corr1 ; eauto.
+        congruence.
       + rewrite in_app. rewrite in_app. repeat rewrite in_map_iff. crush.
         inversion H ; crush. eapply InrAlt_r. eapply InrAlt_l. 
         eapply regexp_extract_nil_corr2. eauto. eauto. auto.
     - repeat rewrite in_app. repeat rewrite in_map_iff. crush.
       + repeat in_regexp_inv. right ; right. 
-        exists x. split ; auto. eapply IHtr2. eauto.
+        exists x0. split ; auto. eapply IHtr2. eauto.
       + injection H ; crush. eapply InrAlt_r ; eauto. eapply InrAlt_r ; eauto.
         eapply IHtr2. auto.
   Qed.
@@ -1461,21 +1462,21 @@ Module RawRESet := MSetAVL.Make REOrderedType.
     fold add_xform_tree. unfold Raw.add. fold Raw.add.
     generalize (cmp_leib x t2).
     destruct (REOrderedTypeAlt.compare x t2) ; auto ; intros.
-    specialize (IHs1 x f1 (xcomp xinl f)).
-    match goal with 
-        | [ |- projT1 (match ?e with | existT _ _ _ => _ end) = _ ] => remember e as e1
-    end.
-    destruct e1. rewrite bal_xform_erase. 
-    unfold tree_type in IHs1, Heqe1. 
-    simpl regexp_type in IHs1.
-    rewrite <- Heqe1 in IHs1. rewrite <- IHs1. auto.
-    specialize (IHs2 x f1 (xcomp (xcomp xinr xinr) f)).
-    fold regexp_type in IHs2. fold tree_to_regexp in IHs2. 
-    unfold tree_type in *.
-    match goal with 
+    - specialize (IHs1 x f1 (xcomp xinl f)).
+      match goal with 
       | [ |- projT1 (match ?e with | existT _ _ _ => _ end) = _ ] => remember e as e1
-    end.
-    destruct e1. rewrite bal_xform_erase. rewrite <- IHs2. auto.
+      end.
+      destruct e1. rewrite bal_xform_erase. 
+      unfold tree_type in IHs1, Heqe1. 
+      simpl regexp_type in IHs1.
+      setoid_rewrite <- Heqe1 in IHs1. rewrite <- IHs1. auto.
+    - specialize (IHs2 x f1 (xcomp (xcomp xinr xinr) f)).
+      fold regexp_type in IHs2. fold tree_to_regexp in IHs2. 
+      unfold tree_type in *.
+      match goal with 
+      | [ |- projT1 (match ?e with | existT _ _ _ => _ end) = _ ] => remember e as e1
+      end.
+      destruct e1. rewrite bal_xform_erase. rewrite <- IHs2. auto.
   Qed.
 
   Lemma add_xform_tree_corr : 
@@ -1484,87 +1485,95 @@ Module RawRESet := MSetAVL.Make REOrderedType.
       in_re_xform (existT _ x fx) str v \/ in_tree_xform (existT _ tr ftr) str v.
   Proof.
     induction tr ; intros ; split ; crush.
-    unfold in_tree in H. simpl in H. repeat in_regexp_inv. xmatch_simpl_hyp ; crush.
-    unfold in_tree. simpl. econstructor ; crush. xmatch_simpl ; crush. destruct x0.
-    generalize H ; clear H. generalize (cmp_leib x t1). 
-    generalize (REOrderedTypeAlt.compare x t1). destruct c. intro.
-    generalize (e eq_refl). intro. subst. simpl. crush. unfold in_tree in *.
-    simpl in *. (repeat in_regexp_inv) ; repeat (xinterp_simpl ; crush).
-    generalize (in_app_or _ _ _ H0). crush. right ; econstructor ; crush.
-    right ; econstructor ; crush. intros.
-    specialize (IHtr1 (xcomp xinl ftr) x fx str v) ; clear IHtr2.
-    unfold tree_type in H.
-    simpl regexp_type in IHtr1.
-    match goal with 
-      | [ H : in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ |- _ ] => 
-        remember exp as e1
-    end.
-    destruct e1. generalize (bal_xform_corr1 _ _ _ _ _ _ _ _ H). intros.
-    destruct H0. generalize (proj1 IHtr1 H0). clear IHtr1 H0 H. intro.
-    destruct H. crush. unfold in_tree in *. crush ; xinterp_simpl. crush.
-    crush ; xinterp_simpl ; unfold in_tree in * ; right ; econstructor ; crush.
-    intros. specialize (IHtr2 (xcomp (xcomp xinr xinr) ftr) x fx str v). clear IHtr1.
-    fold regexp_type in IHtr2. fold tree_to_regexp in IHtr2. unfold tree_type in H.
-    match goal with 
-      | [ H : in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ |- _ ] => 
-        remember exp as e1
-    end.
-    destruct e1. generalize (bal_xform_corr1 _ _ _ _ _ _ _ _ H) ; intros.
-    destruct H0. crush. xinterp_simpl. unfold in_tree. right ; econstructor ; crush.
-    destruct H0. unfold in_tree. crush. xinterp_simpl. right ; econstructor ; crush.
-    generalize (proj1 IHtr2 H0). clear IHtr2 H0 H. intro. destruct H. crush.
-    unfold in_tree in *. crush. xinterp_simpl. right ; econstructor ; crush.
-    generalize (cmp_leib x t1). generalize (REOrderedTypeAlt.compare x t1).
-    destruct c ; intro. generalize (e eq_refl) ; intro ; subst. simpl. 
-    unfold in_tree. econstructor ; crush. xinterp_simpl. apply in_or_app.
-    right ; auto. specialize (IHtr1 (xcomp xinl ftr) x fx str v). clear IHtr2.
-    unfold tree_type. simpl regexp_type in IHtr1.
-    match goal with 
+    - unfold in_tree in H. simpl in H. repeat in_regexp_inv. xmatch_simpl_hyp ; crush.
+    - unfold in_tree. simpl. econstructor ; crush. xmatch_simpl ; crush.
+    - destruct x0.
+    - generalize H ; clear H. generalize (cmp_leib x t1). 
+      generalize (REOrderedTypeAlt.compare x t1). destruct c.
+      + intro. 
+        generalize (e eq_refl). intro. subst. simpl. crush. unfold in_tree in *.
+        simpl in *. (repeat in_regexp_inv) ; repeat (xinterp_simpl ; crush).
+        * generalize (in_app_or _ _ _ H0). crush. right ; econstructor ; crush.
+        * right ; econstructor ; crush.
+      + intros.
+        specialize (IHtr1 (xcomp xinl ftr) x fx str v) ; clear IHtr2.
+        unfold tree_type in H.
+        simpl regexp_type in IHtr1.
+        match goal with 
+        | [ H : in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ |- _ ] => 
+          remember exp as e1
+        end.
+        destruct e1. generalize (bal_xform_corr1 _ _ _ _ _ _ _ _ H). intros.
+        destruct H0.
+        * rewrite Heqe1 in H0. generalize (proj1 IHtr1 H0). clear IHtr1 H0 H. intro.
+          destruct H. crush. unfold in_tree in *. crush ; xinterp_simpl. crush.
+        * crush ; xinterp_simpl ; unfold in_tree in * ; right ; econstructor ; crush.
+      + intros. specialize (IHtr2 (xcomp (xcomp xinr xinr) ftr) x fx str v). clear IHtr1.
+        fold regexp_type in IHtr2. fold tree_to_regexp in IHtr2. unfold tree_type in H.
+        match goal with 
+        | [ H : in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ |- _ ] => 
+          remember exp as e1
+        end.
+        destruct e1. generalize (bal_xform_corr1 _ _ _ _ _ _ _ _ H) ; intros.
+        destruct H0. crush. xinterp_simpl. unfold in_tree. right ; econstructor ; crush.
+        destruct H0. unfold in_tree. crush. xinterp_simpl. right ; econstructor ; crush.
+        generalize (proj1 IHtr2 H0). clear IHtr2 H0 H. intro. destruct H. crush.
+        unfold in_tree in *. crush. xinterp_simpl. right ; econstructor ; crush.
+    - generalize (cmp_leib x t1). generalize (REOrderedTypeAlt.compare x t1).
+      destruct c ; intro. generalize (e eq_refl) ; intro ; subst. simpl. 
+      unfold in_tree. econstructor ; crush. xinterp_simpl. apply in_or_app.
+      right ; auto. specialize (IHtr1 (xcomp xinl ftr) x fx str v). clear IHtr2.
+      unfold tree_type. simpl regexp_type in IHtr1.
+      match goal with 
       | [ |- in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ ] => 
         remember exp as e1
-    end.
-    destruct e1. apply bal_xform_corr2. left. apply IHtr1. left. crush.
-    clear IHtr1. specialize (IHtr2 (xcomp (xcomp xinr xinr) ftr) x fx str v).
-    unfold tree_type. simpl regexp_type in IHtr2.
-    match goal with 
+      end.
+      destruct e1. apply bal_xform_corr2. left. rewrite Heqe1. apply IHtr1. left. crush.
+      clear IHtr1. specialize (IHtr2 (xcomp (xcomp xinr xinr) ftr) x fx str v).
+      unfold tree_type. simpl regexp_type in IHtr2.
+      match goal with 
       | [ |- in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ ] => 
         remember exp as e1
-    end.
-    destruct e1. apply bal_xform_corr2. right. right. apply IHtr2. left ; crush.
-    generalize (cmp_leib x t1). generalize (REOrderedTypeAlt.compare x t1).
-    destruct c ; intros. generalize (e eq_refl) ; intros ; subst. simpl.
-    exists x0. split. auto. xinterp_simpl. destruct x0. xinterp_simpl. auto.
-    xinterp_simpl. destruct s. xinterp_simpl. apply in_or_app. left ; auto.
-    xinterp_simpl ; auto.
-    specialize (IHtr1 (xcomp xinl ftr) x fx str v). clear IHtr2.
-    unfold tree_type. simpl regexp_type in IHtr1.
-    match goal with 
-      | [ |- in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ ] => 
-        remember exp as e1
-    end.
-    destruct e1. apply bal_xform_corr2. unfold in_tree in H. simpl in H.
-    generalize (inv_alt H) ; clear H. intros. destruct H. 
-    destruct H as [v1 [H1 H2]]. subst. left. apply IHtr1. unfold in_tree.
-    right ; econstructor ; split ; eauto. xinterp_simpl. auto.
-    destruct H as [v2 [H1 H2]]. subst. generalize (inv_alt H1). clear H1.
-    intro H1. destruct H1. destruct H as [v1 [H1 H2]]. subst.
-    right ; left. simpl. econstructor ; split ; eauto. xinterp_simpl ; auto.
-    destruct H as [v3 [H1 H2]]. subst. right ; right. simpl. unfold in_tree.
-    econstructor ; split ; eauto ; xinterp_simpl ; auto.
-    clear IHtr1. specialize (IHtr2 (xcomp (xcomp xinr xinr) ftr) x fx str v).
-    unfold tree_type. simpl regexp_type in IHtr2.
-    match goal with 
-      | [ |- in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ ] => 
-        remember exp as e1
-    end.
-    destruct e1. apply bal_xform_corr2. simpl in *. unfold in_tree in *. simpl in *.
-    generalize (inv_alt H) ; clear H ; intro H. destruct H. 
-    destruct H as [v1 [H1 H2]]. subst. left. econstructor ; split ; eauto.
-    xinterp_simpl ; auto. destruct H as [v2 [H1 H2]]. subst.
-    generalize (inv_alt H1) ; clear H1 ; intro H. destruct H.
-    destruct H as [v1 [H1 H2]]. subst. right ; left. econstructor ; split ; eauto.
-    xinterp_simpl ; auto. destruct H as [v3 [H1 H2]]. subst. right ; right.
-    apply IHtr2. right. econstructor. split ; eauto. xinterp_simpl ; auto.
+      end.
+      destruct e1. apply bal_xform_corr2. right. right. rewrite Heqe1. apply IHtr2. left ; crush.
+    - generalize (cmp_leib x t1). generalize (REOrderedTypeAlt.compare x t1).
+      destruct c ; intros.
+      + generalize (e eq_refl) ; intros ; subst. simpl.
+        exists x0. split. auto. xinterp_simpl. destruct x0. xinterp_simpl. auto.
+        xinterp_simpl. destruct s. xinterp_simpl. apply in_or_app. left ; auto.
+        xinterp_simpl ; auto.
+      + specialize (IHtr1 (xcomp xinl ftr) x fx str v). clear IHtr2.
+        unfold tree_type. simpl regexp_type in IHtr1.
+        match goal with 
+        | [ |- in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ ] => 
+          remember exp as e1
+        end.
+        destruct e1. apply bal_xform_corr2. unfold in_tree in H. simpl in H.
+        generalize (inv_alt H) ; clear H. intros. destruct H. 
+        destruct H as [v1 [H1 H2]]. subst. left. rewrite Heqe1. apply IHtr1. unfold in_tree.
+        right ; econstructor ; split ; eauto. xinterp_simpl. auto.
+        destruct H as [v2 [H1 H2]]. subst. generalize (inv_alt H1). clear H1.
+        intro H1. destruct H1. destruct H as [v1 [H1 H2]]. subst.
+        right ; left. simpl. econstructor ; split ; eauto. xinterp_simpl ; auto.
+        destruct H as [v3 [H1 H2]]. subst. right ; right. simpl. unfold in_tree.
+        econstructor ; split ; eauto ; xinterp_simpl ; auto.
+      + clear IHtr1. specialize (IHtr2 (xcomp (xcomp xinr xinr) ftr) x fx str v).
+        unfold tree_type. simpl regexp_type in IHtr2.
+        match goal with 
+        | [ |- in_tree_xform (match ?exp with existT _ _ _ => _ end) _ _ ] => 
+          remember exp as e1
+        end.
+        destruct e1. apply bal_xform_corr2. simpl in *. unfold in_tree in *. simpl in *.
+        generalize (inv_alt H) ; clear H ; intro H. destruct H. 
+        * destruct H as [v1 [H1 H2]]. subst. left. econstructor ; split ; eauto.
+          xinterp_simpl ; auto.
+        * destruct H as [v2 [H1 H2]]. subst.
+          generalize (inv_alt H1) ; clear H1 ; intro H. destruct H.
+          destruct H as [v1 [H1 H2]]. subst. right ; left. econstructor ; split ; eauto.
+          xinterp_simpl ; auto. destruct H as [v3 [H1 H2]]. subst. right ; right.
+          unfold in_tree_xform in IHtr2. 
+          simpl in *. setoid_rewrite <- Heqe1 in IHtr2.
+          apply IHtr2. right. econstructor. split ; eauto. xinterp_simpl ; auto.
   Qed.
 
   Fixpoint join_xform t (l:Raw.tree) : 
