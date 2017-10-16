@@ -28,6 +28,7 @@ let eax = Reg_op EAX
 let ebx = Reg_op EBX
 let ecx = Reg_op ECX
 let edx = Reg_op EDX
+let edi = Reg_op EDI
 
 (* 'add cl, al' should be encoded as '02 C8' *)
 let add_cl_al = ADD (false, ecx, eax)
@@ -43,5 +44,7 @@ let add_edx_0f0e =
        Address_op {addrDisp = Big.of_int 0x0F0E; addrBase = None; addrIndex = None})
 let () = assert (encode add_edx_0f0e = ["03"; "15"; "0E"; "0F"; "00"; "00"])
 
-
-  
+(* 'add edi, [ebx]' should be encoded as *)
+let add_edi_ind_ebx = 
+  ADD (true, edi, 
+       Address_op {addrDisp = Big.zero; addrBase = Some EBX; addrIndex = None})
