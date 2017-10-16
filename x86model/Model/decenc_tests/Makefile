@@ -10,10 +10,13 @@ OCB_FLAGS = -use-ocamlfind -tag bin_annot
 OCB = 		ocamlbuild -lib nums $(OCB_FLAGS) 
 ENCODE = Encode
 
-all: native byte # profile debug
+all: native byte lib
 
 clean:
 	$(OCB) -clean
+
+lib: 
+	$(OCB) $(ENCODE).cma
 
 native:
 	$(OCB) $(ENCODE).native
