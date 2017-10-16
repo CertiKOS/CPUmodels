@@ -7,7 +7,7 @@
 .PHONY:	all clean byte native
 
 OCB_FLAGS = -use-ocamlfind -tag bin_annot
-OCB = 		ocamlbuild $(OCB_FLAGS)
+OCB = 		ocamlbuild -lib nums $(OCB_FLAGS) 
 ENCODE = Encode
 
 all: native byte # profile debug
