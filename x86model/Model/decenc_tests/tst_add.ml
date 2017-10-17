@@ -69,3 +69,14 @@ let add_ebx_ebp_disp32 =
        Address_op {addrDisp = Big.of_int 0x1D34; addrBase = Some EBP; addrIndex = None})
 let () = assert (encode add_ebx_ebp_disp32 = ["03"; "9D"; "34"; "1D"; "00"; "00"])
 
+(* 'add ebp, [0x1D34 + eax*1]' should be encoded as '03 2C 05 34 1D 00 00' *)
+let add_ebp_disp32_eax =
+  ADD (true, ebp,
+       Address_op {addrDisp = Big.of_int 0x1D34; addrBase = None; addrIndex = Some(Scale1,EAX)})
+let () = assert (encode add_ebp_disp32_eax = ["03"; "2C"; "05"; "34"; "1D"; "00"; "00"])
+
+(* 'add ecx, [ebx + edi*4]' should be encoded as '03 0C BB' *)
+let add_ecx_ebx_edi_4 =
+  ADD (true, ecx,
+       Address_op {addrDisp = Big.zero; addrBase = Some EBX; addrIndex = Some(Scale4,EDI)})
+let () = assert (encode add_ecx_ebx_edi_4 = ["03"; "0C"; "BB"])
