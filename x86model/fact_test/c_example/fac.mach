@@ -1,3 +1,6 @@
+Stack frame size: 20
+Frame link offset: 4
+Return addr offset: 16
 fac() {
 	stack(8, any32) = EBX
 	EBX = param(0, int)
@@ -13,6 +16,9 @@ fac() {
 	return
 }
 
+Stack frame size: 12
+Frame link offset: 4
+Return addr offset: 8
 main() {
 	EAX = 4
 	stack(0, int) = EAX
