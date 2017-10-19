@@ -29,6 +29,8 @@ let ebp = Reg_op EBP
 let esp = Reg_op ESP
 
 let imm n = Imm_op (Big.of_int n)
+(* offset to DS *)
+let offset i = Offset_op (Big.of_int i)
 
 let addr_reg_ofs r ofs = 
   match r with
@@ -39,6 +41,20 @@ let addr_glob i =
   Address_op {addrDisp = Big.of_int i; addrBase = None; addrIndex = None}
 
 let je l = Jcc (E_ct, Big.of_int l)
+
+(* Encode a list of Rocksalt instructions into a list of bytes *)
+let encode_accum (einstrs, n) instr =
+  try
+    let ei = encode instr in
+    (ei::einstrs, n+1)
+  with
+    Failure msg -> failwith (sprintf "Encoding failed at the %d-th instruction" n)
+
+(* Transform a list of bytes [ [b1; b2; b3]; .... ; [bn, bn+1, bn+2] ] into
+   a stream of bits 'b1^b2^b3^...^bn^bn+1^bn+2' *)
+let byte_list_to_bits bl = 
+  let concat_bytes l = List.fold_right (fun h s -> h ^ s) l ""
+  in List.fold_right (fun bytes s -> (concat_bytes bytes) ^ s) bl ""
 
 
 (* Code of fac *)
@@ -71,19 +87,15 @@ let fac_code =
     MOV  (true, addr_reg_ofs esp 4, eax);
     MOV  (true, eax, imm 4);
     MOV  (true, addr_reg_ofs esp 0, eax);
-    CALL (true, false, imm (-0x4C), None);
-    MOV  (true, addr_glob 88, eax);
+    CALL (true, false, imm (-0x4), None);
+    MOV  (true, offset 0, eax);
     ADD  (true, esp, imm 12);
     RET  (true, None)
   ]
 
-let encode_accum (einstrs, n) instr =
-  try
-    let ei = encode instr in
-    (ei::einstrs, n+1)
-  with
-    Failure msg -> failwith (sprintf "Encoding failed at the %d-th instruction" n)
   
-let fac_binary =
+let fac_bytes_list =
   let (l, _) = List.fold_left encode_accum ([], 0) fac_code in
   List.rev l
+
+let fac_bits = byte_list_to_bits fac_bytes_list
