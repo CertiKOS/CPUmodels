@@ -87,7 +87,7 @@ let fac_code =
     MOV  (true, addr_reg_ofs esp 4, eax);
     MOV  (true, eax, imm 4);
     MOV  (true, addr_reg_ofs esp 0, eax);
-    CALL (true, false, imm (-0x4), None);
+    CALL (true, false, imm (-0x4C), None);
     MOV  (true, offset 0, eax);
     ADD  (true, esp, imm 12);
     RET  (true, None)
