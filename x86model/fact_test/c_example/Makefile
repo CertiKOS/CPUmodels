@@ -1,5 +1,5 @@
 CC = gcc
-FLAGS = -m32 -nostdlib -s -static
+FLAGS = -m32 -nostdlib -s -static -Wl,--build-id=none
 CFLAGS = -c $(FLAGS)
 
 fac : fac.s stubstart.s
