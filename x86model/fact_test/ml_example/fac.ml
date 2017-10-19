@@ -40,10 +40,6 @@ let addr_glob i =
 
 let je l = Jcc (E_ct, Big.of_int l)
 
-let fac = imm 0
-let l100 = imm 100
-let l101 = imm 90
-let main = imm 200
 
 (* Code of fac *)
 let fac_code =
@@ -55,12 +51,12 @@ let fac_code =
     MOV  (true, addr_reg_ofs esp 8, ebx);
     MOV  (true, ebx, addr_reg_ofs eax 0);
     TEST (true, ebx, ebx);
-    je   100;
+    je   0x10;
     LEA  (eax, addr_reg_ofs ebx (-1));
     MOV  (true, addr_reg_ofs esp 0, eax);
-    CALL (true, false, fac, None);
-    IMUL (true, ebx, None, None);
-    JMP  (true, false, l101, None);
+    CALL (true, false, imm (-0x20), None);
+    IMUL (false, ebx, Some eax, None);
+    JMP  (true, false, imm 0x5, None);
 (* .L100: *)
     MOV  (true, ebx, (imm 1));
 (* .L101: *)
@@ -71,11 +67,11 @@ let fac_code =
 (* End of fac *)
 (* main: *)
     SUB  (true, esp, imm 12);
-    LEA  (eax, addr_reg_ofs esp 32);
+    LEA  (eax, addr_reg_ofs esp 16);
     MOV  (true, addr_reg_ofs esp 4, eax);
     MOV  (true, eax, imm 4);
     MOV  (true, addr_reg_ofs esp 0, eax);
-    CALL (true, false, fac, None);
+    CALL (true, false, imm (-0x4C), None);
     MOV  (true, addr_glob 88, eax);
     ADD  (true, esp, imm 12);
     RET  (true, None)
