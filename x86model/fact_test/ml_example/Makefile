@@ -4,13 +4,13 @@
 
 # bin-annot is required for Merlin and other IDE-like tools
 
-.PHONY:	all clean byte native
+.PHONY:	all clean byte native elf
 
 OCB_FLAGS = -use-ocamlfind -tag bin_annot
 OCB = 		ocamlbuild -lib nums $(OCB_FLAGS) 
 ENCODE = Encode
 
-all: native byte lib
+all: native byte lib elf
 
 clean:
 	$(OCB) -clean
@@ -23,5 +23,8 @@ native:
 
 byte:
 	$(OCB) $(ENCODE).byte
+
+elf:
+	$(OCB) Elf.cma
 
 

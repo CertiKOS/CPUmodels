@@ -1,6 +1,7 @@
 open Printf
 open Encode
 open X86Syntax
+open Elf
 
 (* No prefix *)
 let null_prefix = {lock_rep = None; seg_override = None; op_override = false; addr_override = false}
@@ -17,7 +18,7 @@ let encode instr =
   let bits = x86_encode null_prefix instr in 
   match bits with
   | None -> failwith ("Encoding failed")
-  | Some bits -> List.map (byte_dec_to_hex <| Big.to_int) bits
+  | Some bits -> List.map Big.to_int bits
 
 (* Register operands *)
 let eax = Reg_op EAX
@@ -46,15 +47,22 @@ let je l = Jcc (E_ct, Big.of_int l)
 let encode_accum (einstrs, n) instr =
   try
     let ei = encode instr in
-    (ei::einstrs, n+1)
+    (ei :: einstrs, n+1)
   with
     Failure msg -> failwith (sprintf "Encoding failed at the %d-th instruction" n)
 
-(* Transform a list of bytes [ [b1; b2; b3]; .... ; [bn, bn+1, bn+2] ] into
-   a stream of bits 'b1^b2^b3^...^bn^bn+1^bn+2' *)
-let byte_list_to_bits bl = 
-  let concat_bytes l = List.fold_right (fun h s -> h ^ s) l ""
-  in List.fold_right (fun bytes s -> (concat_bytes bytes) ^ s) bl ""
+let encode_instrs instrs =
+  let (l, _) = List.fold_left encode_accum ([], 0) instrs in
+  List.rev l
+
+(* Write encoded instructions to a binary file *)
+let write_ecd_instrs file_name little_endian ecd_instrs = 
+  let dump_channel = open_out_bin file_name in
+  let ecd_instrs' = if little_endian then ecd_instrs
+                    else List.map (fun b -> List.rev b) ecd_instrs 
+  in
+  List.iter (fun instr -> List.iter (fun b -> output_byte dump_channel b) instr) ecd_instrs';
+  close_out dump_channel
 
 
 (* Code of fac *)
@@ -93,9 +101,18 @@ let fac_code =
     RET  (true, None)
   ]
 
+let fac_bytes = encode_instrs fac_code
   
-let fac_bytes_list =
-  let (l, _) = List.fold_left encode_accum ([], 0) fac_code in
-  List.rev l
+let fac_dump_file = "fac_rs"
+let () = write_ecd_instrs fac_dump_file true fac_bytes
 
-let fac_bits = byte_list_to_bits fac_bytes_list
+let fac_elf_header = create_386_exec_elf_header 0x80480c9 52 240 2 4 3
+let fac_elf = {
+    ef_header = fac_elf_header;
+    ef_sec_headers = [];
+    ef_prog_headers = [];
+    ef_sections = [];
+  }
+
+let () = write_elf "elf_tst" fac_elf
+
