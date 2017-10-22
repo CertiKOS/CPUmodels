@@ -6,9 +6,6 @@ open Elf
 (* No prefix *)
 let null_prefix = {lock_rep = None; seg_override = None; op_override = false; addr_override = false}
 
-(* Function composition *)
-let (<|) f g = (fun x -> f (g x))
-
 (* Convert an integer representing a byte to hexadecimal *)
 let byte_dec_to_hex byte =
   sprintf "%02X" byte
@@ -106,11 +103,84 @@ let fac_bytes = encode_instrs fac_code
 let fac_dump_file = "fac_rs"
 let () = write_ecd_instrs fac_dump_file true fac_bytes
 
+(* elf header *)
 let fac_elf_header = create_386_exec_elf_header 0x80480c9 52 240 2 4 3
+
+(* .text segment *)
+let fac_elf_prog_header1 =
+  {
+    p_type     = PT_LOAD;
+    p_offset   = 0;
+    p_vaddr    = 0x08048000;
+    p_paddr    = 0x08048000;
+    p_filesz   = 0xd7;
+    p_memsz    = 0xd7;
+    p_flags    = [PF_EXEC; PF_READ];
+    p_align    = 0x1000
+  }
+
+(* .bss segment *)
+let fac_elf_prog_header2 =
+  {
+    p_type     = PT_LOAD;
+    p_offset   = 0xd8;
+    p_vaddr    = 0x080490d8;
+    p_paddr    = 0x080490d8;
+    p_filesz   = 0;
+    p_memsz    = 4;
+    p_flags    = [PF_WRITE; PF_READ];
+    p_align    = 0x1000
+  }
+
+(* section headers *)
+
+(* type section_header = *)
+(*   { *)
+(*     sh_name        : int;   (\* offset in the string table to the name of the section *\) *)
+(*     sh_type        : section_type;  *)
+(*     sh_flags       : section_flag list; *)
+(*     sh_addr        : int;   (\* starting address of the section in the memory *\) *)
+(*     sh_offset      : int;   (\* offset to the beginning of the section in the file *\) *)
+(*     sh_size        : int;   (\* size of the section *\) *)
+(*     sh_addralign   : int;   (\* alignment of the section *\) *)
+(*   } *)
+
+let fac_sec_header1 = {
+    sh_name       = 0x0b;
+    sh_type       = SHT_PROGBITS;
+    sh_flags      = [SHF_ALLOC; SHF_EXECINSTR];
+    sh_addr       = 0x08048074;
+    sh_offset     = 0x74;
+    sh_size       = 0x63;
+    sh_addralign  = 1;
+  }
+
+let fac_sec_header2 = {
+    sh_name       = 0x11;
+    sh_type       = SHT_NOBITS;
+    sh_flags      = [SHF_ALLOC; SHF_WRITE];
+    sh_addr       = 0x080490d8;
+    sh_offset     = 0xD8;
+    sh_size       = 0x4;
+    sh_addralign  = 4;
+  }
+
+let fac_sec_header3 = {
+    sh_name       = 0x01;
+    sh_type       = SHT_STRTAB;
+    sh_flags      = [];
+    sh_addr       = 0;
+    sh_offset     = 0xD7;
+    sh_size       = 0x16;
+    sh_addralign  = 1;
+  }
+
+
+(* elf file *)
 let fac_elf = {
     ef_header = fac_elf_header;
-    ef_sec_headers = [];
-    ef_prog_headers = [];
+    ef_sec_headers = [null_section_header; fac_sec_header1; fac_sec_header2; fac_sec_header3];
+    ef_prog_headers = [fac_elf_prog_header1; fac_elf_prog_header2];
     ef_sections = [];
   }
 

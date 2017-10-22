@@ -1,10 +1,38 @@
 (**** Generate the ELF file *****)
 
+let rec gen_list size init =
+  if size = 0 then []
+  else init :: (gen_list (size-1) init)
+
+let array_overwrite asrc adest offset =
+  Array.iteri (fun i e -> Array.set adest (i+offset) e) asrc
+
+(* Function composition *)
+let (<|) f g = (fun x -> f (g x))
+
+let rec nth_byte v n =
+  if n = 0 then 
+    v land 0xFF
+  else
+    nth_byte (v / 0x100) (n-1)
+  
+let int32_to_bytes i32 little_endian =
+  let bytes = [nth_byte i32 0; nth_byte i32 1; nth_byte i32 2; nth_byte i32 3]
+  in 
+  if little_endian then bytes else List.rev bytes
+
+let int16_to_bytes i16 little_endian =
+  let bytes = [nth_byte i16 0; nth_byte i16 1]
+  in 
+  if little_endian then bytes else List.rev bytes
+
+
+  
 (* ELF header *)
 type elf_data_encoding = | ELFDATANONE 
                          | ELFDATA2LSB   (* little endian *) 
                          | ELFDATA2MSB   (* big endian *)
-let ef_encoding_to_bytes ecd = 
+let ef_encoding_to_byte ecd = 
   match ecd with
   | ELFDATANONE -> 0
   | ELFDATA2LSB -> 1
@@ -13,7 +41,7 @@ let ef_encoding_to_bytes ecd =
 type elf_file_class = | ELFCLASSNONE 
                       | ELFCLASS32  (* 32-bit file *) 
                       | ELFCLASS64  (* 64-bit file *)
-let ef_class_to_bytes cls =
+let ef_class_to_byte cls =
   match cls with
   | ELFCLASSNONE -> 0
   | ELFCLASS32 -> 1
@@ -24,7 +52,7 @@ type elf_file_type = | ET_NONE
                      | ET_EXEC   (* Executable *)
                      | ET_DYN    (* Shared object *)
                      | ET_CORE   (* Core file *)
-let ef_type_to_bytes typ =
+let ef_type_to_int16 typ =
   match typ with
   | ET_NONE -> 0
   | ET_REL -> 1
@@ -33,7 +61,7 @@ let ef_type_to_bytes typ =
   | ET_CORE -> 4
 
 type elf_machine = | EM_NONE | EM_386
-let ef_machine_to_bytes mach =
+let ef_machine_to_int16 mach =
   match mach with
   | EM_NONE -> 0
   | EM_386 -> 3
@@ -70,10 +98,25 @@ type section_type = | SHT_NULL
                     | SHT_PROGBITS  (* program *)
                     | SHT_STRTAB    (* string table *)
                     | SHT_NOBITS    (* unintialized data *)
+let sec_type_to_int32 typ =
+  match typ with
+  | SHT_NULL     -> 0
+  | SHT_PROGBITS -> 1
+  | SHT_STRTAB   -> 3
+  | SHT_NOBITS   -> 8
 
 type section_flag = | SHF_WRITE       (* writable section *)
                     | SHF_ALLOC       (* section will be allocated in memory *)
                     | SHF_EXECINSTR   (* executable section *)
+let sec_flag_to_int32 flag =
+  match flag with
+  | SHF_WRITE -> 1
+  | SHF_ALLOC -> 2
+  | SHF_EXECINSTR -> 4
+let sec_flags_to_int32 flags =
+  let bytes = List.map sec_flag_to_int32 flags in
+  List.fold_left (fun acc byte -> acc lor byte) 0 bytes
+
 
 type section_header =
   {
@@ -85,13 +128,46 @@ type section_header =
     sh_size        : int;   (* size of the section *)
     sh_addralign   : int;   (* alignment of the section *)
   }
+let sec_header_to_bytes sh little_endian =
+  (int32_to_bytes sh.sh_name little_endian) @
+  (int32_to_bytes (sec_type_to_int32 sh.sh_type) little_endian) @
+  (int32_to_bytes (sec_flags_to_int32 sh.sh_flags) little_endian) @
+  (int32_to_bytes sh.sh_addr little_endian) @
+  (int32_to_bytes sh.sh_offset little_endian) @
+  (int32_to_bytes sh.sh_size little_endian) @
+  (int32_to_bytes 0 little_endian) @ (* link *)
+  (int32_to_bytes 0 little_endian) @ (* info *)
+  (int32_to_bytes sh.sh_addralign little_endian) @ 
+  (int32_to_bytes 0 little_endian) (* entsize *)
+
+let null_section_header = {
+    sh_name       = 0;
+    sh_type       = SHT_NULL;
+    sh_flags      = [];
+    sh_addr       = 0;
+    sh_offset     = 0;
+    sh_size       = 0;
+    sh_addralign  = 0;
+  }
 
 type segment_type = | PT_NULL 
                     | PT_LOAD  (* the program segment is loadable to the memory *)
+let seg_type_to_int32 typ =
+  match typ with
+  | PT_NULL -> 0
+  | PT_LOAD -> 1
 
 type segment_flag = | PF_EXEC   (* executable *)
                     | PF_WRITE  (* writable *)
                     | PF_READ   (* readable *)
+let seg_flag_to_int32 flag =
+  match flag with
+  | PF_EXEC  -> 1
+  | PF_WRITE -> 2
+  | PF_READ  -> 4
+let seg_flags_to_int32 flags =
+  let bytes = List.map seg_flag_to_int32 flags in
+  List.fold_left (fun acc byte -> acc lor byte) 0 bytes
 
 type program_header =
   {
@@ -104,6 +180,15 @@ type program_header =
     p_flags  : segment_flag list;
     p_align  : int;   (* alignment of the segment *)
   }
+let prog_header_to_bytes ph little_endian =
+  (int32_to_bytes (seg_type_to_int32 ph.p_type) little_endian) @
+  (int32_to_bytes ph.p_offset little_endian) @
+  (int32_to_bytes ph.p_vaddr little_endian) @
+  (int32_to_bytes ph.p_paddr little_endian) @
+  (int32_to_bytes ph.p_filesz little_endian) @
+  (int32_to_bytes ph.p_memsz little_endian) @
+  (int32_to_bytes (seg_flags_to_int32 ph.p_flags) little_endian) @
+  (int32_to_bytes ph.p_align little_endian)
 
 
 type elf_file = {
@@ -112,6 +197,75 @@ type elf_file = {
     ef_prog_headers : program_header list;  (* program headers *)
     ef_sections     : int list;             (* contents of the sections *)
   }
+
+let elf_file_size ef =
+  let h = ef.ef_header in
+  h.e_shoff + h.e_shentsize * h.e_shnum
+
+let elf_prog_headers_size ef =
+  let h = ef.ef_header in
+  h.e_phentsize * h.e_phnum
+
+let elf_header_to_bytes eh little_endian =
+  let l = 
+  (* e_ident array *)
+  [0x7f; (Char.code 'E'); (Char.code 'L'); (Char.code 'F');
+   (ef_class_to_byte eh.e_class);
+   (ef_encoding_to_byte eh.e_encoding);
+   1 (* version is current *)
+  ] @
+  gen_list (ei_size-ei_pad) 0 @
+  (int16_to_bytes (ef_type_to_int16 eh.e_type) little_endian) @
+  (int16_to_bytes (ef_machine_to_int16 eh.e_machine) little_endian) @
+  (int32_to_bytes  1 little_endian) @ (* version is current *)
+  (int32_to_bytes  eh.e_entry      little_endian) @
+  (int32_to_bytes  eh.e_phoff      little_endian) @
+  (int32_to_bytes  eh.e_shoff      little_endian) @
+  (int32_to_bytes  eh.e_flags      little_endian) @
+  (int16_to_bytes  eh.e_ehsize     little_endian) @
+  (int16_to_bytes  eh.e_phentsize  little_endian) @
+  (int16_to_bytes  eh.e_phnum      little_endian) @
+  (int16_to_bytes  eh.e_shentsize  little_endian) @
+  (int16_to_bytes  eh.e_shnum      little_endian) @
+  (int16_to_bytes  eh.e_shstrndx   little_endian)
+  in
+  Array.of_list l
+
+let elf_program_headers_to_bytes phs little_endian =
+  let acc ph bytes = (prog_header_to_bytes ph little_endian) @ bytes in
+  let bytes = List.fold_right acc phs [] in
+  Array.of_list bytes
+
+let elf_section_headers_to_bytes shs little_endian =
+  let acc sh bytes = (sec_header_to_bytes sh little_endian) @ bytes in
+  let bytes = List.fold_right acc shs [] in
+  Array.of_list bytes
+
+let elf_to_bytes ef = 
+  let sz = elf_file_size ef in
+  let fimg = Array.make sz 0 in
+  (* Endian of the ELF file *)
+  let little_endian = (ef.ef_header.e_encoding = ELFDATA2LSB) in
+  (* Write the header *)
+  let himg = elf_header_to_bytes ef.ef_header little_endian in
+  array_overwrite himg fimg 0;
+  (* Write the program headers *)
+  let phimg = elf_program_headers_to_bytes ef.ef_prog_headers little_endian in
+  (* Printf.printf "phimg size: %d\n ph encoding size: %d\n" (elf_prog_headers_size ef) (Array.length phimg); *)
+  (* assert (Array.length phimg = elf_prog_headers_size ef); *)
+  array_overwrite phimg fimg ef.ef_header.e_phoff;
+  (* Write the section headers *)
+  let shimg = elf_section_headers_to_bytes ef.ef_sec_headers little_endian in
+  array_overwrite shimg fimg ef.ef_header.e_shoff;
+  fimg 
+  
+(* Write the file image into a binary file *)
+let write_elf fname ef =
+  let fimg = elf_to_bytes ef in
+  let dump_channel = open_out_bin fname in
+  Array.iter (fun i -> output_byte dump_channel i) fimg;
+  close_out dump_channel
+
 
 let create_386_exec_elf_header entry phoff shoff phnum shnum shstrndx =
   {
@@ -130,41 +284,3 @@ let create_386_exec_elf_header entry phoff shoff phnum shnum shstrndx =
     e_shnum     = shnum;
     e_shstrndx  = shstrndx;
   }
-
-let elf_file_size ef =
-  let h = ef.ef_header in
-  h.e_shoff + h.e_shentsize * h.e_shnum
-
-let elf_header_to_bytes eh =
-  let himg = Array.make eh.e_ehsize 0 in
-  Array.set himg ei_mag0 0x7f;
-  Array.set himg ei_mag1 (Char.code 'E');
-  Array.set himg ei_mag2 (Char.code 'L');
-  Array.set himg ei_mag3 (Char.code 'F');
-  Array.set himg ei_class (ef_class_to_bytes eh.e_class);
-  Array.set himg ei_data (ef_encoding_to_bytes eh.e_encoding);
-  Array.set himg ei_version 1;
-  Array.fill himg ei_pad (ei_size-ei_pad) 0;
-  himg
-
-let elf_program_header_to_bytes ph sz =
-  let himg = Array.make sz 0 in
-  p
-
-let array_overwrite asrc adest offset =
-  Array.iteri (fun i e -> Array.set adest (i+offset) e) asrc
-
-let elf_to_bytes ef = 
-  let sz = elf_file_size ef in
-  let fimg = Array.make sz 0 in
-  (* Write the header *)
-  let himg = elf_header_to_bytes ef.ef_header in
-  array_overwrite himg fimg 0;
-  fimg 
-  
-(* Write the file image into a binary file *)
-let write_elf fname ef =
-  let fimg = elf_to_bytes ef in
-  let dump_channel = open_out_bin fname in
-  Array.iter (fun i -> output_byte dump_channel i) fimg;
-  close_out dump_channel
