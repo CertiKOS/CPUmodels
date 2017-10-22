@@ -93,7 +93,7 @@ let fac_code =
     MOV  (true, eax, imm 4);
     MOV  (true, addr_reg_ofs esp 0, eax);
     CALL (true, false, imm (-0x4C), None);
-    MOV  (true, offset 0, eax);
+    MOV  (true, offset 0x080490d8, eax);
     ADD  (true, esp, imm 12);
     RET  (true, None)
   ]
@@ -107,7 +107,7 @@ let () = write_ecd_instrs fac_dump_file true fac_bytes
 let fac_elf_header = create_386_exec_elf_header 0x80480c9 52 240 2 4 3
 
 (* .text segment *)
-let fac_elf_prog_header1 =
+let fac_text_seg =
   {
     p_type     = PT_LOAD;
     p_offset   = 0;
@@ -120,7 +120,7 @@ let fac_elf_prog_header1 =
   }
 
 (* .bss segment *)
-let fac_elf_prog_header2 =
+let fac_bss_seg =
   {
     p_type     = PT_LOAD;
     p_offset   = 0xd8;
@@ -133,19 +133,7 @@ let fac_elf_prog_header2 =
   }
 
 (* section headers *)
-
-(* type section_header = *)
-(*   { *)
-(*     sh_name        : int;   (\* offset in the string table to the name of the section *\) *)
-(*     sh_type        : section_type;  *)
-(*     sh_flags       : section_flag list; *)
-(*     sh_addr        : int;   (\* starting address of the section in the memory *\) *)
-(*     sh_offset      : int;   (\* offset to the beginning of the section in the file *\) *)
-(*     sh_size        : int;   (\* size of the section *\) *)
-(*     sh_addralign   : int;   (\* alignment of the section *\) *)
-(*   } *)
-
-let fac_sec_header1 = {
+let fac_text_sec = {
     sh_name       = 0x0b;
     sh_type       = SHT_PROGBITS;
     sh_flags      = [SHF_ALLOC; SHF_EXECINSTR];
@@ -155,7 +143,7 @@ let fac_sec_header1 = {
     sh_addralign  = 1;
   }
 
-let fac_sec_header2 = {
+let fac_bss_sec = {
     sh_name       = 0x11;
     sh_type       = SHT_NOBITS;
     sh_flags      = [SHF_ALLOC; SHF_WRITE];
@@ -165,7 +153,7 @@ let fac_sec_header2 = {
     sh_addralign  = 4;
   }
 
-let fac_sec_header3 = {
+let fac_shstrtab_sec = {
     sh_name       = 0x01;
     sh_type       = SHT_STRTAB;
     sh_flags      = [];
@@ -176,12 +164,24 @@ let fac_sec_header3 = {
   }
 
 
-(* elf file *)
+(* Elf file *)
+let startstub = 
+ ['\xe8'; '\xda'; '\xff'; '\xff'; '\xff';      (* call   0x80480a8 *)
+  '\x89'; '\xc3';                              (* mov    %eax,%ebx *)
+  '\xb8'; '\x01'; '\x00'; '\x00'; '\x00';      (* mov    $0x1,%eax *)
+  '\xcd'; '\x80']                              (* int    $0x80 *)
+let startstub_bytes = 
+  List.map Char.code startstub
+
+
 let fac_elf = {
-    ef_header = fac_elf_header;
-    ef_sec_headers = [null_section_header; fac_sec_header1; fac_sec_header2; fac_sec_header3];
-    ef_prog_headers = [fac_elf_prog_header1; fac_elf_prog_header2];
-    ef_sections = [];
+    ef_header       = fac_elf_header;
+    ef_text_sec     = fac_text_sec;
+    ef_bss_sec      = fac_bss_sec;
+    ef_shstrtab_sec = fac_shstrtab_sec;
+    ef_text_seg     = fac_text_seg;
+    ef_bss_seg      = fac_bss_seg;
+    ef_text         = (List.concat fac_bytes) @ startstub_bytes;
   }
 
 let () = write_elf "elf_tst" fac_elf

@@ -94,6 +94,8 @@ let ei_version = 6
 let ei_pad = 7
 let ei_size = 16
 
+
+(* Section header *)
 type section_type = | SHT_NULL
                     | SHT_PROGBITS  (* program *)
                     | SHT_STRTAB    (* string table *)
@@ -150,6 +152,16 @@ let null_section_header = {
     sh_addralign  = 0;
   }
 
+(* String table *)
+(** The default strtab is ' .shstrtab .text .bss' *)
+let default_strtab = 
+ ['\x00'; '.'; 's'; 'h'; 's'; 't'; 'r'; 't'; 'a'; 'b';
+  '\x00'; '.'; 't'; 'e'; 'x'; 't';
+  '\x00'; '.'; 'b'; 's'; 's']
+let default_strtab_bytes =
+  List.map Char.code default_strtab
+
+(* Program header *)
 type segment_type = | PT_NULL 
                     | PT_LOAD  (* the program segment is loadable to the memory *)
 let seg_type_to_int32 typ =
@@ -168,6 +180,7 @@ let seg_flag_to_int32 flag =
 let seg_flags_to_int32 flags =
   let bytes = List.map seg_flag_to_int32 flags in
   List.fold_left (fun acc byte -> acc lor byte) 0 bytes
+
 
 type program_header =
   {
@@ -191,11 +204,30 @@ let prog_header_to_bytes ph little_endian =
   (int32_to_bytes ph.p_align little_endian)
 
 
+(* Elf file *)
+
+(** The simple elf file we have only has three sections:
+
+    1. The .text section holding the program text (executable instructions)
+    2. The .bss  section holding uninitialized global data
+    3. The .shstrtab section holding the string table
+    
+    Correspondently, we have two program segments:
+
+    1. The segment containing executable instruction
+    2. The segment for global data
+
+    We may later add more sections and segments.
+**)
+
 type elf_file = {
     ef_header       : elf_header;           (* ELF header *)
-    ef_sec_headers  : section_header list;  (* section headers *)
-    ef_prog_headers : program_header list;  (* program headers *)
-    ef_sections     : int list;             (* contents of the sections *)
+    ef_text_sec     : section_header;       (* section headers *)
+    ef_bss_sec      : section_header;
+    ef_shstrtab_sec : section_header;
+    ef_text_seg     : program_header;       (* program headers *)
+    ef_bss_seg      : program_header;       
+    ef_text         : int list;             (* bytes of the sections *)
   }
 
 let elf_file_size ef =
@@ -206,6 +238,8 @@ let elf_prog_headers_size ef =
   let h = ef.ef_header in
   h.e_phentsize * h.e_phnum
 
+
+(* Encoding elf data structure to an array of bytes *)
 let elf_header_to_bytes eh little_endian =
   let l = 
   (* e_ident array *)
@@ -231,15 +265,18 @@ let elf_header_to_bytes eh little_endian =
   in
   Array.of_list l
 
-let elf_program_headers_to_bytes phs little_endian =
-  let acc ph bytes = (prog_header_to_bytes ph little_endian) @ bytes in
-  let bytes = List.fold_right acc phs [] in
+let elf_program_headers_to_bytes ef little_endian =
+  let bytes = (prog_header_to_bytes ef.ef_text_seg little_endian) @
+              (prog_header_to_bytes ef.ef_bss_seg little_endian) in
   Array.of_list bytes
 
-let elf_section_headers_to_bytes shs little_endian =
-  let acc sh bytes = (sec_header_to_bytes sh little_endian) @ bytes in
-  let bytes = List.fold_right acc shs [] in
+let elf_section_headers_to_bytes ef little_endian =
+  let bytes = (sec_header_to_bytes null_section_header little_endian) @
+              (sec_header_to_bytes ef.ef_text_sec little_endian) @
+              (sec_header_to_bytes ef.ef_bss_sec little_endian) @
+              (sec_header_to_bytes ef.ef_shstrtab_sec little_endian) in
   Array.of_list bytes
+
 
 let elf_to_bytes ef = 
   let sz = elf_file_size ef in
@@ -250,13 +287,18 @@ let elf_to_bytes ef =
   let himg = elf_header_to_bytes ef.ef_header little_endian in
   array_overwrite himg fimg 0;
   (* Write the program headers *)
-  let phimg = elf_program_headers_to_bytes ef.ef_prog_headers little_endian in
+  let phimg = elf_program_headers_to_bytes ef little_endian in
   (* Printf.printf "phimg size: %d\n ph encoding size: %d\n" (elf_prog_headers_size ef) (Array.length phimg); *)
   (* assert (Array.length phimg = elf_prog_headers_size ef); *)
   array_overwrite phimg fimg ef.ef_header.e_phoff;
   (* Write the section headers *)
-  let shimg = elf_section_headers_to_bytes ef.ef_sec_headers little_endian in
+  let shimg = elf_section_headers_to_bytes ef little_endian in
   array_overwrite shimg fimg ef.ef_header.e_shoff;
+  (* Write the string table *)
+  let strtabimg = Array.of_list default_strtab_bytes in
+  array_overwrite strtabimg fimg ef.ef_shstrtab_sec.sh_offset;
+  (* Write the instructions *)
+  array_overwrite (Array.of_list ef.ef_text) fimg ef.ef_text_sec.sh_offset;
   fimg 
   
 (* Write the file image into a binary file *)
@@ -284,3 +326,7 @@ let create_386_exec_elf_header entry phoff shoff phnum shnum shstrndx =
     e_shnum     = shnum;
     e_shstrndx  = shstrndx;
   }
+
+  
+
+
