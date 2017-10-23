@@ -17,14 +17,16 @@ clean:
 
 lib: 
 	$(OCB) $(ENCODE).cma
+	$(OCB) Elf.cma
 
 native:
 	$(OCB) $(ENCODE).native
+	$(OCB) fac.native
 
 byte:
 	$(OCB) $(ENCODE).byte
+	$(OCB) fac.native
 
-elf:
-	$(OCB) Elf.cma
+
 
 
